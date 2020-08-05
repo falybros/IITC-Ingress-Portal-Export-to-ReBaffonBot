@@ -1,18 +1,13 @@
 // ==UserScript==
-// @id iitc-plugin-ingressportalcsvexport@zetaphor
-// @name IITC Plugin: Ingress Portal CSV Export
+// @id iitc-plugin-ingressportalrebaffonbotexport@falybros
+// @name IITC Plugin: Ingress Portal Export to ReBaffonBot
 // @category Information
-// @version 0.0.5
-// @namespace http://github.com/Zetaphor/IITC-Ingress-Portal-CSV-Export
-// @updateURL https://raw.githubusercontent.com/Zetaphor/IITC-Ingress-Portal-CSV-Export/master/ingress_export.js
-// @downloadURL https://raw.githubusercontent.com/Zetaphor/IITC-Ingress-Portal-CSV-Export/master/ingress_export.js
-// @description Exports portals to a CSV list
-// @include https://*ingress.com/intel*
-// @include http://*ingress.com/intel*
-// @match https://*ingress.com/intel*
-// @match http://*ingress.com/intel*
-// @match https://intel.ingress.com/*
-// @match http://intel.ingress.com/*
+// @version 0.0.1
+// @description Exports portals to ReBaffonBot
+// @include https://*.ingress.com/intel*
+// @include http://*.ingress.com/intel*
+// @match https://*.ingress.com/intel*
+// @match http://*.ingress.com/intel*
 // @grant none
 // ==/UserScript==
 /*global $:false */
@@ -25,8 +20,8 @@ function wrapper() {
     }
 
     // base context for plugin
-    window.plugin.portal_csv_export = function() {};
-    var self = window.plugin.portal_csv_export;
+    window.plugin.portal_ReBaffonBot_export = function() {};
+    var self = window.plugin.portal_ReBaffonBot_export;
 
     window.master_portal_list = {};
     window.portal_scraper_enabled = false;
@@ -100,20 +95,37 @@ function wrapper() {
         var str= "";
         str = title;
         str = str.replace(/\"/g, "\\\"");
-        str = str.replace(";", "_");
-        str = '"'+str+'"' + "," + href + "," + '"'+image+'"';
+        str = str.replace(";", " ");
+        str = '"' + str + '"' + "," + href + "," + image;
         if (window.plugin.keys && (typeof window.portals[portalGuid] !== "undefined")) {
             var keyCount =window.plugin.keys.keys[portalGuid] || 0;
-            str = str + "," + keyCount;
+            str = str + ";" + keyCount;
         }
+
+        //Invio dati al server
+        var theUrl = "https://babilonialagrande.net/BotTelegram/ReBaffonBot/exportPortal.php";
+        var get = "?NOME=" + title + "&LAT=" + lat + "&LNG=" + lng + "&IMG=" + image;
+        var xmlHttp = new XMLHttpRequest();
+        //xmlHttp.open("GET", theUrl + get, false); // false for synchronous request
+        //xmlHttp.send();
+
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                callback(xmlHttp.responseText);
+        }
+        xmlHttp.open("GET", theUrl + get, true); // true for asynchronous
+        xmlHttp.send(null);
+
+        //Fine collegamento
+
         return str;
     };
 
     self.genStrFromPortal = function genStrFromPortal(portal, portalGuid) {
         var lat = portal._latlng.lat,
             lng = portal._latlng.lng,
-            title = portal.options.data.title || "untitled portal";
-            image = portal.options.data.image || ""
+            title = portal.options.data.title || "untitled portal",
+            image = portal.options.data.image || "";
 
         return self.genStr(title, image, lat, lng, portalGuid);
     };
@@ -160,7 +172,7 @@ function wrapper() {
     };
 
     self.generateCsvData = function() {
-        var csvData = 'Name, Latitude, Longitude, Image' + "\n";
+        var csvData = '';
         $.each(window.master_portal_list, function(key, value) {
             csvData += (value + "\n");
         });
@@ -209,19 +221,19 @@ function wrapper() {
 
     self.setZoomLevel = function() {
         window.map.setZoom(15);
-        $('#currentZoomLevel').html('15');
+        $('#currentZoomLevelRB').html('15');
         self.updateZoomStatus();
     };
 
     self.updateZoomStatus = function() {
         var zoomLevel = window.map.getZoom();
-        $('#currentZoomLevel').html(window.map.getZoom());
+        $('#currentZoomLevelRB').html(window.map.getZoom());
         if (zoomLevel != 15) {
             window.current_area_scraped = false;
-            $('#currentZoomLevel').css('color', 'red');
-            if (window.portal_scraper_enabled) $('#scraperStatus').html('Invalid Zoom Level').css('color', 'yellow');
+            $('#currentZoomLevelRB').css('color', 'red');
+            if (window.portal_scraper_enabled) $('#scraperStatusRB').html('Invalid Zoom Level').css('color', 'yellow');
         }
-        else $('#currentZoomLevel').css('color', 'green');
+        else $('#currentZoomLevelRB').css('color', 'green');
     };
 
     self.updateTimer = function() {
@@ -232,14 +244,14 @@ function wrapper() {
                     if (!window.current_area_scraped) {
                         self.checkPortals(window.portals);
                         window.current_area_scraped = true;
-                        $('#scraperStatus').html('Running').css('color', 'green');
+                        $('#scraperStatusRB').html('Running').css('color', 'green');
                         self.drawRectangle();
                     } else {
-                        $('#scraperStatus').html('Area Scraped').css('color', 'green');
+                        $('#scraperStatusRB').html('Area Scraped').css('color', 'green');
                     }
                 } else {
                     current_area_scraped = false;
-                    $('#scraperStatus').html('Waiting For Map Data').css('color', 'yellow');
+                    $('#scraperStatusRB').html('Waiting For Map Data').css('color', 'yellow');
                 }
             }
         }
@@ -253,18 +265,18 @@ function wrapper() {
     self.toggleStatus = function() {
         if (window.portal_scraper_enabled) {
             window.portal_scraper_enabled = false;
-            $('#scraperStatus').html('Stopped').css('color', 'red');
-            $('#startScraper').show();
-            $('#stopScraper').hide();
-            $('#csvControlsBox').hide();
-            $('#totalPortals').hide();
+            $('#scraperStatusRB').html('Stopped').css('color', 'red');
+            $('#startScraperRB').show();
+            $('#stopScraperRB').hide();
+            $('#csvControlsBoxRB').hide();
+            $('#totalPortalsRB').hide();
         } else {
             window.portal_scraper_enabled = true;
-            $('#scraperStatus').html('Running').css('color', 'green');
-            $('#startScraper').hide();
-            $('#stopScraper').show();
-            $('#csvControlsBox').show();
-            $('#totalPortals').show();
+            $('#scraperStatusRB').html('Running').css('color', 'green');
+            $('#startScraperRB').hide();
+            $('#stopScraperRB').show();
+            $('#csvControlsBoxRB').show();
+            $('#totalPortalsRB').show();
             self.updateTotalScrapedCount();
         }
 
@@ -276,28 +288,25 @@ function wrapper() {
         var link = $("");
         $("#toolbox").append(link);
 
-        var csvToolbox = `
-        <div id="csvToolbox" style="position: relative;">
-            <p style="margin: 5px 0 5px 0; text-align: center; font-weight: bold;">Portal CSV Exporter</p>
-            <a id="startScraper" style="position: absolute; top: 0; left: 0; margin: 0 5px 0 5px;" onclick="window.plugin.portal_csv_export.toggleStatus();" title="Start the portal data scraper">Start</a>
-            <a id="stopScraper" style="position: absolute; top: 0; left: 0; display: none; margin: 0 5px 0 5px;" onclick="window.plugin.portal_csv_export.toggleStatus();" title="Stop the portal data scraper">Stop</a>
-
+        var reBaffonBotToolbox = `
+        <div id="reBaffonBotToolbox" style="position: relative;">
+            <p style="margin: 5px 0 5px 0; text-align: center; font-weight: bold;">Portal ReBaffon Exporter</p>
+            <a id="startScraperRB" style="position: absolute; top: 0; left: 0; margin: 0 5px 0 5px;" onclick="window.plugin.portal_ReBaffonBot_export.toggleStatus();" title="Start the portal data scraper">Start</a>
+            <a id="stopScraperRB" style="position: absolute; top: 0; left: 0; display: none; margin: 0 5px 0 5px;" onclick="window.plugin.portal_ReBaffonBot_export.toggleStatus();" title="Stop the portal data scraper">Stop</a>
             <div class="zoomControlsBox" style="margin-top: 5px; padding: 5px 0 5px 5px;">
-                Current Zoom Level: <span id="currentZoomLevel">0</span>
-                <a style="margin: 0 5px 0 5px;" onclick="window.plugin.portal_csv_export.setZoomLevel();" title="Set zoom level to enable portal data download.">Set Zoom Level</a>
+                Current Zoom Level: <span id="currentZoomLevelRB">0</span>
+                <a style="margin: 0 5px 0 5px;" onclick="window.plugin.portal_ReBaffonBot_export.setZoomLevel();" title="Set zoom level to enable portal data download.">Set Zoom Level</a>
             </div>
-
-            <p style="margin:0 0 0 5px;">Scraper Status: <span style="color: red;" id="scraperStatus">Stopped</span></p>
-            <p id="totalPortals" style="display: none; margin:0 0 0 5px;">Total Portals Scraped: <span id="totalScrapedPortals">0</span></p>
-
-            <div id="csvControlsBox" style="display: none; margin-top: 5px; padding: 5px 0 5px 5px; border-top: 1px solid #20A8B1;">
-                <a style="margin: 0 5px 0 5px;" onclick="window.plugin.portal_csv_export.gen();" title="View the CSV portal data.">View Data</a>
-                <a style="margin: 0 5px 0 5px;" onclick="window.plugin.portal_csv_export.downloadCSV();" title="Download the CSV portal data.">Download CSV</a>
+            <p style="margin:0 0 0 5px;">Scraper Status: <span style="color: red;" id="scraperStatusRB">Stopped</span></p>
+            <p id="totalPortalsRB" style="display: none; margin:0 0 0 5px;">Total Portals Scraped: <span id="totalScrapedPortals">0</span></p>
+            <div id="csvControlsBoxRB" style="display: none; margin-top: 5px; padding: 5px 0 5px 5px; border-top: 1px solid #20A8B1;">
+                <a style="margin: 0 5px 0 5px;" onclick="window.plugin.portal_ReBaffonBot_export.gen();" title="View the CSV portal data.">View Data</a>
+                <a style="margin: 0 5px 0 5px;" onclick="window.plugin.portal_ReBaffonBot_export.downloadCSV();" title="Download the CSV portal data.">Download CSV</a>
             </div>
         </div>
         `;
 
-        $(csvToolbox).insertAfter('#toolbox');
+        $(reBaffonBotToolbox).insertAfter('#toolbox');
 
         window.csvUpdateTimer = window.setInterval(self.updateTimer, 500);
 
